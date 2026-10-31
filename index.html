@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Monthly Bills</title>
+
+  <!-- Phone "app" setup: Add to Home Screen opens it full screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Bills">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f4f6f2" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121a17" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <div class="app-name">Monthly Bills</div>
+        <div class="today" id="todayLabel"></div>
+      </div>
+      <button class="icon-btn" id="dataBtn" aria-label="Backup and data">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      </button>
+    </header>
+
+    <main class="stack">
+      <!-- 1. The big number -->
+      <section class="hero" aria-labelledby="heroLabel">
+        <span class="hero-label" id="heroLabel">Your bills per month</span>
+        <div class="hero-total" id="total">€ 0,00</div>
+        <div class="hero-sub" id="totalSub"></div>
+      </section>
+
+      <!-- 2. Split by label -->
+      <section class="card" id="labelsCard" hidden>
+        <div class="card-head">
+          <h2>Where it goes</h2>
+          <span class="head-note">per month · per year</span>
+        </div>
+        <div class="stackbar" id="stackbar" aria-hidden="true"></div>
+        <ul class="labels" id="labels"></ul>
+      </section>
+
+      <!-- 3. When money leaves the account -->
+      <section class="card" id="chartCard" hidden>
+        <div class="card-head">
+          <h2>Next 30 days</h2>
+          <span class="head-note" id="chartTotal"></span>
+        </div>
+        <div class="chart" id="chart"></div>
+        <div class="legend">
+          <span><i class="key key-bar"></i>Paid that day</span>
+          <span><i class="key key-area"></i>Running total</span>
+        </div>
+        <div class="chart-info" id="chartInfo" aria-live="polite"></div>
+      </section>
+
+      <!-- 4. All bills -->
+      <section class="stack-sm">
+        <div class="section-head">
+          <h2>All bills</h2>
+          <span class="head-note" id="countNote"></span>
+        </div>
+        <div id="billList"></div>
+      </section>
+
+      <p class="footnote">Saved on this device only. Use <b>Back up</b> in the ⋯ menu before updating the app or changing phones.</p>
+    </main>
+  </div>
+
+  <button class="fab" id="addBtn">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
+    Add bill
+  </button>
+
+  <div id="sheetRoot"></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <input type="file" id="restoreInput" accept="application/json,.json" hidden>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
