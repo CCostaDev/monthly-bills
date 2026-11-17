@@ -149,7 +149,9 @@ h2 { font-size: 16px; font-weight: 600; margin: 0; }
 
 /* chart */
 .chart { position: relative; width: 100%; min-width: 0; }
-.chart svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; cursor: ew-resize; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.chart .bar { transition: opacity .12s; }
+@media (prefers-reduced-motion: reduce) { .chart .bar { transition: none; } }
 .chart text { font-family: var(--body); font-size: 11px; fill: var(--muted); }
 .chart .lbl-strong { fill: var(--ink); font-weight: 600; }
 .legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 12px; margin-top: -4px; }
