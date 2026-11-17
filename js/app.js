@@ -138,9 +138,7 @@ function renderChart(active, today) {
   const bars = days.map((d, i) => {
     if (!d.amount) return "";
     const h = Math.max(base - y(d.amount), 3);
-    const sel = i === selectedDay;
-    return `<rect x="${x(i) + bw * 0.18}" y="${base - h}" width="${Math.max(bw * 0.64, 3)}" height="${h}" rx="2"
-      fill="var(--accent)" opacity="${selectedDay == null || sel ? 1 : 0.45}"/>`;
+    return `<rect class="bar" data-i="${i}" x="${x(i) + bw * 0.18}" y="${base - h}" width="${Math.max(bw * 0.64, 3)}" height="${h}" rx="2" fill="var(--accent)"/>`;
   }).join("");
 
   // x-axis: today, every 7 days, and month starts
@@ -154,14 +152,6 @@ function renderChart(active, today) {
     return out;
   }).join("");
 
-  const selLine = selectedDay != null
-    ? `<line x1="${x(selectedDay) + bw / 2}" x2="${x(selectedDay) + bw / 2}" y1="${padT - 4}" y2="${base}" stroke="var(--ink)" stroke-width="1.2"/>
-       <circle cx="${x(selectedDay) + bw / 2}" cy="${y(days[selectedDay].running)}" r="4" fill="var(--surface)" stroke="var(--area-line)" stroke-width="2"/>`
-    : "";
-
-  const hits = days.map((d, i) =>
-    `<rect data-i="${i}" x="${x(i)}" y="0" width="${bw}" height="${H}" fill="transparent"/>`).join("");
-
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
       aria-label="Money going out over the next 30 days, ${money(total)} in total">
     ${grid}
@@ -170,37 +160,87 @@ function renderChart(active, today) {
     <path d="${line}" fill="none" stroke="var(--area-line)" stroke-width="2" stroke-linejoin="round"/>
     ${bars}
     <line x1="${padL}" x2="${W - padR}" y1="${base}" y2="${base}" stroke="var(--line)"/>
-    ${ticks}${selLine}${hits}
+    ${ticks}
+    <g class="cursor" style="display:none">
+      <line y1="${padT - 4}" y2="${base}" stroke="var(--ink)" stroke-width="1.2"/>
+      <circle r="4.5" fill="var(--surface)" stroke="var(--area-line)" stroke-width="2"/>
+    </g>
   </svg>`;
 
-  el.querySelectorAll("rect[data-i]").forEach(r => r.addEventListener("click", () => {
-    const i = +r.dataset.i;
-    // Tapping an empty day jumps to the nearest day with a payment
-    let pick = i;
-    if (!days[i].amount) {
-      let best = null;
-      days.forEach((d, j) => { if (d.amount && (best == null || Math.abs(j - i) < Math.abs(best - i))) best = j; });
-      pick = best;
-    }
-    selectedDay = pick === selectedDay ? null : pick;
-    renderChart(active, today);
-  }));
+  const paying = days.map((d, i) => (d.amount ? i : -1)).filter(i => i >= 0);
+  const cursor = el.querySelector(".cursor");
+  const cLine = cursor.querySelector("line"), cDot = cursor.querySelector("circle");
 
-  // Info box under the chart
+  // Moves the highlight without redrawing the chart, so dragging stays smooth.
+  function showSelection() {
+    const sel = selectedDay;
+    el.querySelectorAll(".bar").forEach(b => b.setAttribute("opacity", sel == null || +b.dataset.i === sel ? 1 : 0.4));
+    cursor.style.display = sel == null ? "none" : "";
+    if (sel != null) {
+      const cx = x(sel) + bw / 2;
+      cLine.setAttribute("x1", cx); cLine.setAttribute("x2", cx);
+      cDot.setAttribute("cx", cx); cDot.setAttribute("cy", y(days[sel].running));
+    }
+    renderChartInfo(days, paying);
+  }
+
+  // Finger position → nearest day that has a payment ("snaps" from one to the next).
+  function nearestPayDay(clientX) {
+    const r = el.getBoundingClientRect();
+    const i = Math.min(days.length - 1, Math.max(0, Math.floor(((clientX - r.left) / r.width) * W / bw)));
+    let best = null;
+    paying.forEach(j => { if (best == null || Math.abs(j - i) < Math.abs(best - i)) best = j; });
+    return best;
+  }
+
+  let dragging = false, moved = false, startX = 0, startSel = null;
+  const svg = el.querySelector("svg");
+  svg.onpointerdown = e => {
+    if (!paying.length) return;
+    dragging = true; moved = false; startX = e.clientX; startSel = selectedDay;
+    try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+    pick(nearestPayDay(e.clientX));
+  };
+  svg.onpointermove = e => {
+    if (!dragging) return;
+    if (Math.abs(e.clientX - startX) > 6) moved = true;
+    pick(nearestPayDay(e.clientX));
+  };
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    // A plain tap on the day that was already selected clears it
+    if (!moved && startSel != null && startSel === selectedDay) { selectedDay = null; showSelection(); }
+  };
+  svg.onpointerup = end;
+  svg.onpointercancel = () => { dragging = false; };   // page scrolled vertically instead
+
+  function pick(i) {
+    if (i == null || i === selectedDay) return;
+    selectedDay = i;
+    if (navigator.vibrate) { try { navigator.vibrate(8); } catch (_) {} }  // small tick on Android
+    showSelection();
+  }
+
+  if (selectedDay != null && !days[selectedDay]?.amount) selectedDay = null;
+  showSelection();
+}
+
+// Info box under the chart
+function renderChartInfo(days, paying) {
   const info = $("chartInfo");
   if (selectedDay != null && days[selectedDay]) {
     const d = days[selectedDay];
     info.innerHTML = `<div class="ci-top"><span>${shortDate(d.date)}</span><span>${money(d.amount)}</span></div>
       <div class="ci-sub">${d.items.map(b => esc(b.name)).join(", ")}</div>
       <div class="ci-sub">${money(d.running)} out by the end of this day</div>`;
-  } else {
-    const paying = days.filter(d => d.amount);
-    if (!paying.length) { info.innerHTML = `<div class="ci-sub">Nothing goes out in the next 30 days.</div>`; return; }
-    const big = paying.reduce((a, b) => (b.amount > a.amount ? b : a));
-    const next = paying[0];
-    info.innerHTML = `<div class="ci-top"><span>Next: ${shortDate(next.date)}</span><span>${money(next.amount)}</span></div>
-      <div class="ci-sub">Biggest day is ${shortDate(big.date)} with ${money(big.amount)}. Tap the chart for any day.</div>`;
+    return;
   }
+  if (!paying.length) { info.innerHTML = `<div class="ci-sub">Nothing goes out in the next 30 days.</div>`; return; }
+  const big = paying.map(i => days[i]).reduce((a, b) => (b.amount > a.amount ? b : a));
+  const next = days[paying[0]];
+  info.innerHTML = `<div class="ci-top"><span>Next: ${shortDate(next.date)}</span><span>${money(next.amount)}</span></div>
+    <div class="ci-sub">Biggest day is ${shortDate(big.date)} with ${money(big.amount)}. Slide your finger along the chart to see each payment day.</div>`;
 }
 
 // ---------- list ----------
